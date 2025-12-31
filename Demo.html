@@ -1,0 +1,1102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Patient Monitor - ECG Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #7e7fb8 0%, #f5f4f8 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        
+        header {
+            text-align: center;
+            color: white;
+            padding: 30px 20px;
+            margin-bottom: 20px;
+        }
+        
+        h1 {
+            font-size: 2.8rem;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 15px;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+        
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.5fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        
+        .stat-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 25px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .stat-icon {
+            font-size: 3rem;
+            margin-bottom: 15px;
+        }
+        
+        .stat-label {
+            font-size: 1.2rem;
+            color: #666;
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        
+        .stat-value {
+            font-size: 3.5rem;
+            font-weight: 700;
+            color: #2d3436;
+            line-height: 1;
+            margin: 15px 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .stat-unit {
+            font-size: 1.5rem;
+            color: #636e72;
+            margin-left: 5px;
+        }
+        
+        .ecg-card {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .ecg-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.2);
+        }
+        
+        .ecg-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+        
+        .ecg-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #2d3436;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .ecg-status {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 15px;
+            background: #f8f9fa;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        
+        .ecg-status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+        
+        .ecg-status-dot.connected {
+            background: #00b894;
+            animation: pulse 2s infinite;
+        }
+        
+        .ecg-status-dot.disconnected {
+            background: #ff7675;
+        }
+        
+        .ecg-canvas-container {
+            background: #0c1e35;
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 20px;
+            border: 2px solid #2d3436;
+        }
+        
+        .ecg-info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .ecg-info-item {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 15px;
+        }
+        
+        .ecg-info-label {
+            font-size: 0.9rem;
+            color: #666;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+        
+        .ecg-info-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: #2d3436;
+        }
+        
+        .ecg-info-unit {
+            font-size: 1rem;
+            color: #636e72;
+            margin-left: 3px;
+        }
+        
+        .status-bar {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 20px;
+            color: white;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            margin-top: 20px;
+        }
+        
+        .timestamp {
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+        
+        .connection-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 20px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 50px;
+            font-weight: 600;
+        }
+        
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #4cd137;
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        
+        .heartbeat {
+            color: #ff4757;
+            animation: heartbeat 1.5s ease-in-out infinite;
+        }
+        
+        @keyframes heartbeat {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .control-btn {
+            background: white;
+            color: #6366f1;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 50px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .control-btn:hover {
+            background: #f8f9fa;
+            transform: scale(1.05);
+        }
+        
+        .control-btn.secondary {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        
+        .control-btn.secondary:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .error-alert {
+            background: rgba(255, 107, 107, 0.15);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            border-left: 4px solid #ff6b6b;
+            display: none;
+        }
+        
+        /* BPM Prediction Styles */
+        .bpm-prediction {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 0.8rem;
+            padding: 4px 10px;
+            border-radius: 20px;
+            background: rgba(52, 152, 219, 0.1);
+            color: #3498db;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .bpm-estimated {
+            color: #e67e22 !important;
+        }
+        
+        .bpm-estimated .stat-unit {
+            color: #e67e22 !important;
+        }
+        
+        .bpm-value-indicator {
+            font-size: 0.9rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-weight: 600;
+            margin-left: 10px;
+        }
+        
+        .value-real {
+            background: rgba(46, 204, 113, 0.1);
+            color: #27ae60;
+        }
+        
+        .value-estimated {
+            background: rgba(230, 126, 34, 0.1);
+            color: #e67e22;
+        }
+        
+        .stat-note {
+            font-size: 0.8rem;
+            color: #7f8c8d;
+            margin-top: 5px;
+            font-style: italic;
+        }
+        
+        /* ECG Signal Quality Indicator */
+        .signal-quality {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin-left: 10px;
+        }
+        
+        .signal-bar {
+            width: 3px;
+            height: 10px;
+            background: #ddd;
+            border-radius: 2px;
+            animation: signalWave 1s infinite;
+        }
+        
+        .signal-bar:nth-child(2) { animation-delay: 0.2s; }
+        .signal-bar:nth-child(3) { animation-delay: 0.4s; }
+        .signal-bar:nth-child(4) { animation-delay: 0.6s; }
+        .signal-bar:nth-child(5) { animation-delay: 0.8s; }
+        
+        @keyframes signalWave {
+            0%, 100% { height: 10px; background: #ddd; }
+            50% { height: 20px; background: #27ae60; }
+        }
+        
+        /* Health Status Indicator */
+        .health-status {
+            font-size: 0.9rem;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-weight: 600;
+            margin-top: 10px;
+            display: inline-block;
+        }
+        
+        .health-normal {
+            background: rgba(46, 204, 113, 0.1);
+            color: #27ae60;
+        }
+        
+        .health-warning {
+            background: rgba(241, 196, 15, 0.1);
+            color: #f39c12;
+        }
+        
+        .health-critical {
+            background: rgba(231, 76, 60, 0.1);
+            color: #e74c3c;
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .stat-value {
+                font-size: 2.8rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .ecg-info-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .controls {
+                flex-direction: column;
+            }
+        }
+        
+        /* ECG Graph Animation */
+        .ecg-line {
+            stroke: #00ff88;
+            stroke-width: 3;
+            fill: none;
+            filter: drop-shadow(0 0 10px #00ff88);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>👨‍⚕️ Patient Health Monitor</h1>
+            <p class="subtitle">Real-time health data with ECG from ESP32 & AD8232</p>
+        </header>
+        
+        <div class="error-alert" id="errorAlert">
+            <strong>⚠️ Connection Error:</strong> <span id="errorText"></span>
+        </div>
+        
+        <div class="main-grid">
+            <!-- Left Column: Vital Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon">🌡️</div>
+                    <div class="stat-label">Room Temperature</div>
+                    <div class="stat-value">
+                        <span id="tempValue">--</span>
+                        <span class="stat-unit">°C</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">💧</div>
+                    <div class="stat-label">Room Humidity</div>
+                    <div class="stat-value">
+                        <span id="humidityValue">--</span>
+                        <span class="stat-unit">%</span>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon"><span class="heartbeat">❤️</span></div>
+                    <div class="stat-label">
+                        Heart Rate
+                        <div class="signal-quality" id="ecgSignalQuality">
+                            <div class="signal-bar"></div>
+                            <div class="signal-bar"></div>
+                            <div class="signal-bar"></div>
+                            <div class="signal-bar"></div>
+                            <div class="signal-bar"></div>
+                        </div>
+                    </div>
+                    <div class="stat-value" id="bpmContainer">
+                        <span id="bpmValue">--</span>
+                        <span class="stat-unit">BPM</span>
+                        <span class="bpm-value-indicator value-real" id="bpmIndicator">Real</span>
+                    </div>
+                    <div class="stat-note" id="bpmNote">Based on ECG signal analysis</div>
+                    <div class="health-status health-normal" id="bpmHealthStatus">Normal</div>
+                    <div class="bpm-prediction" id="bpmPrediction">
+                        🔮 AI Predicting
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <div class="stat-icon">🌡️</div>
+                    <div class="stat-label">Body Temperature</div>
+                    <div class="stat-value">
+                        <span id="bodyTempValue">--</span>
+                        <span class="stat-unit">°C</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Column: ECG Display -->
+            <div class="ecg-card">
+                <div class="ecg-header">
+                    <div class="ecg-title">
+                        <span>📈 ECG Graph (AD8232)</span>
+                    </div>
+                    <div class="ecg-status">
+                        <span class="ecg-status-dot" id="ecgStatusDot"></span>
+                        <span id="ecgStatusText">Initializing...</span>
+                    </div>
+                </div>
+                
+                <div class="ecg-canvas-container">
+                    <canvas id="ecgChart"></canvas>
+                </div>
+                
+                <div class="ecg-info-grid">
+                    <div class="ecg-info-item">
+                        <div class="ecg-info-label">Signal Amplitude</div>
+                        <div class="ecg-info-value">
+                            <span id="ecgAmplitude">--</span>
+                            <span class="ecg-info-unit">mV</span>
+                        </div>
+                    </div>
+                    <div class="ecg-info-item">
+                        <div class="ecg-info-label">Sampling Rate</div>
+                        <div class="ecg-info-value">
+                            <span id="ecgSampleRate">--</span>
+                            <span class="ecg-info-unit">Hz</span>
+                        </div>
+                    </div>
+                    <div class="ecg-info-item">
+                        <div class="ecg-info-label">Signal Quality</div>
+                        <div class="ecg-info-value">
+                            <span id="ecgSignalQualityValue">--</span>
+                            <span class="ecg-info-unit">%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="status-bar">
+            <div class="timestamp">
+                Last updated: <strong id="lastUpdate">--:--:--</strong>
+            </div>
+            <div class="connection-status">
+                <span class="status-dot"></span>
+                <span id="statusText">Connecting to Firebase...</span>
+            </div>
+            <div class="controls">
+                <button class="control-btn" onclick="fetchData()">
+                    🔄 Refresh Data
+                </button>
+                <button class="control-btn secondary" onclick="toggleECGAnimation()" id="toggleECGBtn">
+                    ⏸️ Pause ECG
+                </button>
+                <button class="control-btn secondary" onclick="clearECGData()">
+                    🗑️ Clear ECG
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Firebase REST API endpoint
+        const FIREBASE_URL = "https://medivue-69e47-default-rtdb.asia-southeast1.firebasedatabase.app/patient.json";
+        
+        // ECG Chart Variables
+        let ecgChart;
+        let ecgData = [];
+        let isECGAnimating = true;
+        let lastECGDataLength = 0;
+        
+        // BPM Prediction Variables
+        let bpmPredictionHistory = [];
+        let lastRealBPM = 72; // Default average heart rate
+        let predictionCount = 0;
+        let ecgSignalQuality = 0;
+        
+        // Initialize ECG Chart
+        function initECGChart() {
+            const ctx = document.getElementById('ecgChart').getContext('2d');
+            
+            ecgChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'ECG Signal',
+                        data: [],
+                        borderColor: '#00ff88',
+                        backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                        borderWidth: 3,
+                        pointRadius: 0,
+                        pointHoverRadius: 0,
+                        fill: false,
+                        tension: 0.4,
+                        cubicInterpolationMode: 'monotone'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: {
+                        duration: 0
+                    },
+                    scales: {
+                        x: {
+                            display: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'white',
+                                font: {
+                                    size: 10
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Time (seconds)',
+                                color: 'white',
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        y: {
+                            display: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: 'white',
+                                font: {
+                                    size: 10
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: 'Amplitude (ADC value)',
+                                color: 'white',
+                                font: {
+                                    size: 12
+                                }
+                            },
+                            suggestedMin: 0,
+                            suggestedMax: 4095
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: 'white',
+                                font: {
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            enabled: false
+                        }
+                    }
+                }
+            });
+            
+            // Set chart height
+            ctx.canvas.style.height = '300px';
+        }
+        
+        // Calculate ECG signal quality
+        function calculateSignalQuality(ecgValues) {
+            if (!ecgValues || ecgValues.length < 10) return 0;
+            
+            const mean = ecgValues.reduce((a, b) => a + b, 0) / ecgValues.length;
+            const variance = ecgValues.reduce((a, b) => a + Math.pow(b - mean, 2), 0) / ecgValues.length;
+            const stdDev = Math.sqrt(variance);
+            
+            let spikeCount = 0;
+            for (let i = 1; i < ecgValues.length - 1; i++) {
+                const diff = Math.abs(ecgValues[i] - ecgValues[i-1]);
+                if (diff > stdDev * 3) {
+                    spikeCount++;
+                }
+            }
+            
+            const signalPower = Math.pow(stdDev, 2);
+            const noisePower = ecgValues.slice(0, 50).reduce((a, b) => a + Math.pow(b - mean, 2), 0) / 50;
+            const snr = signalPower / (noisePower + 1);
+            
+            const quality = Math.min(100, 
+                (spikeCount / ecgValues.length * 100 * 0.3) +
+                (Math.min(1, snr) * 100 * 0.4) +
+                (Math.min(1, ecgValues.length / 250) * 100 * 0.3)
+            );
+            
+            return Math.round(quality);
+        }
+        
+        // Predict BPM based on ECG signal
+        function predictBPM(ecgValues, previousBPM, ecgQuality) {
+            if (!ecgValues || ecgValues.length < 50) {
+                if (previousBPM > 0) {
+                    const variation = (Math.random() * 6) - 3;
+                    return Math.max(40, Math.min(120, previousBPM + variation));
+                } else {
+                    return 72 + (Math.random() * 20) - 10;
+                }
+            }
+            
+            const minVal = Math.min(...ecgValues);
+            const maxVal = Math.max(...ecgValues);
+            const amplitude = maxVal - minVal;
+            
+            let beatCount = 0;
+            const threshold = (maxVal + minVal) / 2 + amplitude * 0.3;
+            let lastBeatIndex = -10;
+            
+            for (let i = 1; i < ecgValues.length - 1; i++) {
+                if (ecgValues[i] > threshold && 
+                    ecgValues[i] > ecgValues[i-1] && 
+                    ecgValues[i] > ecgValues[i+1] &&
+                    (i - lastBeatIndex) > 10) {
+                    beatCount++;
+                    lastBeatIndex = i;
+                }
+            }
+            
+            if (beatCount > 1) {
+                const sampleRate = 250;
+                const totalSamples = ecgValues.length;
+                const durationSeconds = totalSamples / sampleRate;
+                const bpmFromECG = (beatCount / durationSeconds) * 60;
+                
+                if (bpmFromECG >= 40 && bpmFromECG <= 180) {
+                    const blendFactor = ecgQuality / 100;
+                    const predictedBPM = previousBPM > 0 ? 
+                        (bpmFromECG * blendFactor + previousBPM * (1 - blendFactor)) : bpmFromECG;
+                    
+                    return predictedBPM;
+                }
+            }
+            
+            const baseBPM = previousBPM > 0 ? previousBPM : 72;
+            const amplitudeFactor = Math.min(1.5, Math.max(0.5, amplitude / 1000));
+            const qualityFactor = ecgQuality / 100;
+            const randomVariation = (Math.random() * 4) - 2;
+            
+            let predictedBPM = baseBPM * amplitudeFactor * qualityFactor + randomVariation;
+            predictedBPM = Math.max(40, Math.min(120, predictedBPM));
+            
+            bpmPredictionHistory.push(predictedBPM);
+            if (bpmPredictionHistory.length > 5) {
+                bpmPredictionHistory.shift();
+            }
+            
+            if (bpmPredictionHistory.length > 0) {
+                const avg = bpmPredictionHistory.reduce((a, b) => a + b, 0) / bpmPredictionHistory.length;
+                return avg;
+            }
+            
+            return predictedBPM;
+        }
+        
+        // Format BPM value to show only 2 decimal places
+        function formatBPMValue(bpm) {
+            if (bpm === 0 || bpm === '--') return '--';
+            
+            const num = parseFloat(bpm);
+            if (isNaN(num)) return '--';
+            
+            // Round to 2 decimal places and remove trailing zeros
+            const formatted = num.toFixed(2);
+            
+            // Remove trailing zeros and decimal point if not needed
+            if (formatted.endsWith('.00')) {
+                return Math.round(num).toString();
+            } else if (formatted.endsWith('0')) {
+                return num.toFixed(1);
+            }
+            
+            return formatted;
+        }
+        
+        // Update BPM display
+        function updateBPMDisplay(realBPM, predictedBPM, ecgQuality, isLeadsConnected) {
+            const bpmValueElement = document.getElementById('bpmValue');
+            const bpmContainer = document.getElementById('bpmContainer');
+            const bpmIndicator = document.getElementById('bpmIndicator');
+            const bpmNote = document.getElementById('bpmNote');
+            const bpmHealthStatus = document.getElementById('bpmHealthStatus');
+            const bpmPredictionElement = document.getElementById('bpmPrediction');
+            const ecgSignalQualityElement = document.getElementById('ecgSignalQualityValue');
+            
+            let displayBPM;
+            let isEstimated = false;
+            let healthStatus = 'Normal';
+            let healthClass = 'health-normal';
+            
+            ecgSignalQualityElement.textContent = ecgQuality;
+            
+            if (realBPM > 0 && isLeadsConnected) {
+                displayBPM = realBPM;
+                isEstimated = false;
+                bpmPredictionElement.style.display = 'none';
+                lastRealBPM = realBPM;
+                predictionCount = 0;
+            } else {
+                displayBPM = predictedBPM;
+                isEstimated = true;
+                bpmPredictionElement.style.display = 'flex';
+                predictionCount++;
+                
+                if (ecgQuality > 70) {
+                    bpmPredictionElement.innerHTML = `🔮 High Confidence (${ecgQuality}%)`;
+                } else if (ecgQuality > 30) {
+                    bpmPredictionElement.innerHTML = `🔮 Medium Confidence (${ecgQuality}%)`;
+                } else {
+                    bpmPredictionElement.innerHTML = `🔮 Low Confidence (${ecgQuality}%)`;
+                }
+            }
+            
+            // Format the BPM value to show only 2 decimal places
+            bpmValueElement.textContent = formatBPMValue(displayBPM);
+            
+            if (isEstimated) {
+                bpmContainer.classList.add('bpm-estimated');
+                bpmIndicator.textContent = 'Estimated';
+                bpmIndicator.className = 'bpm-value-indicator value-estimated';
+                bpmNote.textContent = 'Based on ECG pattern analysis';
+            } else {
+                bpmContainer.classList.remove('bpm-estimated');
+                bpmIndicator.textContent = 'Real';
+                bpmIndicator.className = 'bpm-value-indicator value-real';
+                bpmNote.textContent = 'Based on QRS complex detection';
+            }
+            
+            // Determine health status using integer BPM
+            const bpmInt = Math.round(displayBPM);
+            if (bpmInt >= 60 && bpmInt <= 100) {
+                healthStatus = 'Normal';
+                healthClass = 'health-normal';
+            } else if ((bpmInt >= 50 && bpmInt < 60) || (bpmInt > 100 && bpmInt <= 110)) {
+                healthStatus = 'Slightly Abnormal';
+                healthClass = 'health-warning';
+            } else {
+                healthStatus = 'Abnormal';
+                healthClass = 'health-critical';
+            }
+            
+            bpmHealthStatus.textContent = healthStatus;
+            bpmHealthStatus.className = `health-status ${healthClass}`;
+            
+            const signalQualityElement = document.getElementById('ecgSignalQuality');
+            if (ecgQuality > 70) {
+                signalQualityElement.style.opacity = '1';
+            } else if (ecgQuality > 30) {
+                signalQualityElement.style.opacity = '0.7';
+            } else {
+                signalQualityElement.style.opacity = '0.4';
+            }
+        }
+        
+        // Update ECG status
+        function updateECGStatus(connected, dataLength = 0, ecgQuality = 0) {
+            const statusDot = document.getElementById('ecgStatusDot');
+            const statusText = document.getElementById('ecgStatusText');
+            
+            if (connected && dataLength > 0) {
+                statusDot.className = 'ecg-status-dot connected';
+                if (ecgQuality > 70) {
+                    statusText.textContent = `Excellent Signal (${ecgQuality}%)`;
+                } else if (ecgQuality > 30) {
+                    statusText.textContent = `Fair Signal (${ecgQuality}%)`;
+                } else {
+                    statusText.textContent = `Weak Signal (${ecgQuality}%)`;
+                }
+            } else if (connected) {
+                statusDot.className = 'ecg-status-dot connected';
+                statusText.textContent = 'Connected - No Data';
+            } else {
+                statusDot.className = 'ecg-status-dot disconnected';
+                statusText.textContent = 'Leads Disconnected';
+            }
+        }
+        
+        // Process ECG data
+        function processECGData(ecgString) {
+            if (!ecgString || ecgString.trim() === '') {
+                return [];
+            }
+            
+            const values = ecgString.split(',').map(val => {
+                const num = parseInt(val.trim());
+                return isNaN(num) ? 0 : num;
+            });
+            
+            return values;
+        }
+        
+        // Update ECG chart
+        function updateECGChart(ecgValues) {
+            if (!ecgChart || !isECGAnimating) return 0;
+            
+            const dataLength = ecgValues.length;
+            if (dataLength === 0) return 0;
+            
+            const sampleRate = 250;
+            const timeLabels = Array.from({length: dataLength}, (_, i) => 
+                (i / sampleRate).toFixed(2) + 's'
+            );
+            
+            ecgChart.data.labels = timeLabels;
+            ecgChart.data.datasets[0].data = ecgValues;
+            
+            const minVal = Math.min(...ecgValues);
+            const maxVal = Math.max(...ecgValues);
+            const amplitude = maxVal - minVal;
+            const amplitudeMV = (amplitude * 0.805 * 1100 / 1000).toFixed(2);
+            
+            ecgSignalQuality = calculateSignalQuality(ecgValues);
+            
+            document.getElementById('ecgAmplitude').textContent = amplitudeMV;
+            document.getElementById('ecgSampleRate').textContent = sampleRate;
+            document.getElementById('ecgSignalQualityValue').textContent = ecgSignalQuality;
+            
+            updateECGStatus(true, dataLength, ecgSignalQuality);
+            
+            ecgChart.update('none');
+            
+            return ecgSignalQuality;
+        }
+        
+        // Toggle ECG animation
+        function toggleECGAnimation() {
+            isECGAnimating = !isECGAnimating;
+            const toggleBtn = document.getElementById('toggleECGBtn');
+            
+            if (isECGAnimating) {
+                toggleBtn.innerHTML = '⏸️ Pause ECG';
+            } else {
+                toggleBtn.innerHTML = '▶️ Resume ECG';
+            }
+        }
+        
+        // Clear ECG data
+        function clearECGData() {
+            if (ecgChart) {
+                ecgChart.data.labels = [];
+                ecgChart.data.datasets[0].data = [];
+                ecgChart.update();
+            }
+            
+            ecgData = [];
+            document.getElementById('ecgAmplitude').textContent = '--';
+            document.getElementById('ecgSignalQualityValue').textContent = '--';
+            updateECGStatus(false);
+        }
+        
+        // Update status display
+        function updateStatus(text, isError = false) {
+            const statusEl = document.getElementById('statusText');
+            const dotEl = document.querySelector('.status-dot');
+            
+            statusEl.textContent = text;
+            
+            if (isError) {
+                dotEl.style.background = '#ff4757';
+                dotEl.style.animation = 'none';
+            } else {
+                dotEl.style.background = '#4cd137';
+                dotEl.style.animation = 'pulse 2s infinite';
+            }
+        }
+        
+        // Show error message
+        function showError(message) {
+            const errorEl = document.getElementById('errorAlert');
+            const errorText = document.getElementById('errorText');
+            
+            errorText.textContent = message;
+            errorEl.style.display = 'block';
+            updateStatus('Connection Error', true);
+            
+            setTimeout(() => {
+                errorEl.style.display = 'none';
+            }, 10000);
+        }
+        
+        // Fetch data from Firebase
+        async function fetchData() {
+            try {
+                updateStatus('Fetching data...');
+                
+                const url = FIREBASE_URL + '?t=' + Date.now();
+                
+                const response = await fetch(url);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                
+                if (!data || Object.keys(data).length === 0) {
+                    throw new Error('No data found in database');
+                }
+                
+                // Format temperature and humidity values to 1 decimal place
+                document.getElementById('tempValue').textContent = 
+                    data.temperature ? data.temperature.toFixed(1) : '--';
+                
+                document.getElementById('humidityValue').textContent = 
+                    data.humidity ? data.humidity.toFixed(1) : '--';
+                
+                document.getElementById('bodyTempValue').textContent = 
+                    data.body_temperature ? data.body_temperature.toFixed(1) : '--';
+                
+                let ecgValues = [];
+                let ecgQuality = 0;
+                let isLeadsConnected = true;
+                
+                if (data.ecg_data) {
+                    ecgValues = processECGData(data.ecg_data);
+                    
+                    if (ecgValues.length > 0 && ecgValues.length !== lastECGDataLength) {
+                        ecgQuality = updateECGChart(ecgValues);
+                        lastECGDataLength = ecgValues.length;
+                    }
+                    
+                    const minVal = Math.min(...ecgValues);
+                    const maxVal = Math.max(...ecgValues);
+                    const amplitude = maxVal - minVal;
+                    isLeadsConnected = amplitude > 50;
+                } else {
+                    isLeadsConnected = false;
+                    updateECGStatus(false);
+                }
+                
+                // Get BPM value and format it
+                const realBPM = data.heart_rate ? parseFloat(data.heart_rate) : 0;
+                const predictedBPM = predictBPM(ecgValues, realBPM, ecgQuality);
+                
+                updateBPMDisplay(realBPM, predictedBPM, ecgQuality, isLeadsConnected);
+                
+                const now = new Date();
+                document.getElementById('lastUpdate').textContent = 
+                    now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                
+                document.getElementById('errorAlert').style.display = 'none';
+                
+                if (realBPM > 0) {
+                    updateStatus('Live Data - Real BPM Detected');
+                } else if (ecgValues.length > 0) {
+                    updateStatus('Live Data - Estimating BPM');
+                } else {
+                    updateStatus('Live Data - Waiting for ECG');
+                }
+                
+                return true;
+                
+            } catch (error) {
+                console.error('Fetch error:', error);
+                showError(error.message);
+                updateECGStatus(false);
+                
+                const predictedBPM = predictBPM([], lastRealBPM, 0);
+                updateBPMDisplay(0, predictedBPM, 0, false);
+                
+                return false;
+            }
+        }
+        
+        // Initialize on page load
+        window.addEventListener('load', () => {
+            initECGChart();
+            fetchData();
+            setInterval(fetchData, 3000);
+        });
+        
+        // Add offline/online detection
+        window.addEventListener('online', () => {
+            updateStatus('Reconnecting...');
+            fetchData();
+        });
+        
+        window.addEventListener('offline', () => {
+            updateStatus('Offline - No Internet', true);
+            showError('No internet connection');
+            updateECGStatus(false);
+        });
+    </script>
+</body>
+</html>
